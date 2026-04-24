@@ -1,0 +1,993 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ABC Connect — AI Trainer</title>
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700&family=DM+Sans:wght@400;500;600&family=DM+Mono:wght@400&display=swap" rel="stylesheet">
+<style>
+:root{
+  --navy:#0D1B2A;--navy2:#1A2E45;--gold:#C9A84C;--gold2:#E8C87A;
+  --teal:#2BA6A0;--teal2:#3DCCC5;--white:#F5F2ED;
+  --muted:rgba(245,242,237,0.55);--border:rgba(201,168,76,0.2);--sbg:#0F2035;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;background:var(--navy);color:var(--white)}
+
+/* font per lang */
+body.en{font-family:'DM Sans',sans-serif;direction:ltr}
+body.ar{font-family:'Tajawal',sans-serif;direction:rtl}
+
+.app{display:grid;grid-template-rows:60px 1fr;height:100vh}
+.app.en{grid-template-columns:1fr 380px}
+.app.ar{grid-template-columns:380px 1fr}
+
+/* ── topbar ── */
+.topbar{grid-column:1/-1;background:var(--navy2);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;padding:0 18px}
+.logo{width:36px;height:36px;background:var(--gold);border-radius:7px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.logo span{font-size:11px;font-weight:700;color:var(--navy);font-family:'DM Mono',monospace}
+.brand-name{font-size:13px;font-weight:600}
+.brand-sub{font-size:10px;color:var(--muted)}
+.sep{flex:1}
+.pills{display:flex;gap:5px}
+.pill{padding:3px 10px;border-radius:20px;font-size:11px;font-weight:500;border:1px solid var(--border);color:var(--muted);background:transparent;transition:all .3s}
+.pill.done{background:rgba(43,166,160,.15);border-color:var(--teal);color:var(--teal2)}
+.pill.active{background:var(--gold);border-color:var(--gold);color:var(--navy)}
+.scounter{font-size:11px;color:var(--muted);font-family:'DM Mono',monospace}
+
+/* lang toggle */
+.lang-toggle{display:flex;border:1px solid var(--border);border-radius:8px;overflow:hidden;flex-shrink:0}
+.lang-btn{padding:5px 12px;font-size:11px;font-weight:600;cursor:pointer;border:none;background:transparent;color:var(--muted);transition:all .2s;font-family:'DM Mono',monospace}
+.lang-btn.active{background:var(--gold);color:var(--navy)}
+.lang-btn:hover:not(.active){color:var(--gold)}
+
+/* voice controls */
+.vc{display:flex;align-items:center;gap:6px}
+.sbar{display:flex;gap:2px;align-items:flex-end;height:14px;opacity:0;transition:opacity .3s}
+.sbar.on{opacity:1}
+.sbar span{width:3px;background:var(--teal);border-radius:2px;animation:sbaranim .6s ease-in-out infinite}
+.sbar span:nth-child(1){height:4px;animation-delay:0s}
+.sbar span:nth-child(2){height:10px;animation-delay:.1s}
+.sbar span:nth-child(3){height:7px;animation-delay:.2s}
+.sbar span:nth-child(4){height:12px;animation-delay:.05s}
+.sbar span:nth-child(5){height:5px;animation-delay:.15s}
+@keyframes sbaranim{0%,100%{transform:scaleY(.3)}50%{transform:scaleY(1)}}
+.vbtn{width:28px;height:28px;border-radius:6px;border:1px solid var(--border);background:transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--muted);transition:all .2s}
+.vbtn:hover{border-color:var(--gold);color:var(--gold)}
+.vbtn.on{background:var(--teal);border-color:var(--teal);color:var(--navy)}
+.vbtn.off{border-color:rgba(226,75,74,.4);color:#E24B4A}
+.vbtn svg{width:13px;height:13px;fill:currentColor}
+.vsel{background:var(--navy2);border:1px solid var(--border);color:var(--muted);border-radius:6px;font-size:10px;padding:3px 5px;cursor:pointer;max-width:95px;font-family:'DM Mono',monospace}
+
+/* ── slide panel ── */
+.spanel{background:var(--sbg);display:flex;flex-direction:column;overflow:hidden}
+.app.en .spanel{grid-column:1;grid-row:2}
+.app.ar .spanel{grid-column:2;grid-row:2}
+.sviewport{flex:1;display:flex;align-items:center;justify-content:center;padding:16px;min-height:0}
+.slide{width:100%;height:100%;max-width:820px;max-height:450px;background:var(--navy2);border-radius:12px;border:1px solid var(--border);overflow:hidden;position:relative;flex-shrink:0}
+
+/* slide inner — dir set per language in JS */
+.si{width:100%;height:100%;padding:34px 42px;display:flex;flex-direction:column;position:relative;overflow:hidden}
+.si.center{align-items:center;justify-content:center;text-align:center}
+.si.split{flex-direction:row;gap:28px;align-items:center}
+.ar-slide .si{text-align:right}
+.ar-slide .si.split{flex-direction:row-reverse}
+.sl{flex:1}
+.sr{flex:1;display:flex;flex-direction:column;gap:8px}
+.slabel{font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--gold);margin-bottom:8px}
+.stitle{font-size:23px;font-weight:700;line-height:1.4;color:var(--white);margin-bottom:6px}
+.ssub{font-size:13px;color:var(--muted);line-height:1.8}
+.scard{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);border-radius:8px;padding:10px 14px}
+.scard-t{font-size:11px;font-weight:700;color:var(--gold2);margin-bottom:3px}
+.scard-b{font-size:11px;color:var(--muted);line-height:1.6}
+.slist{list-style:none;display:flex;flex-direction:column;gap:6px;margin-top:10px}
+.slist li{font-size:12px;color:var(--muted);padding-left:14px;position:relative;line-height:1.6}
+.ar-slide .slist li{padding-left:0;padding-right:14px}
+.slist li::before{content:'';position:absolute;left:0;top:8px;width:4px;height:4px;border-radius:50%;background:var(--teal)}
+.ar-slide .slist li::before{left:auto;right:0}
+.sbadge{display:inline-flex;align-items:center;background:rgba(43,166,160,.2);border:1px solid var(--teal);border-radius:20px;padding:3px 10px;font-size:11px;color:var(--teal2);margin-bottom:14px}
+.sphases{display:grid;gap:6px;margin-top:14px}
+.sphase{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);border-radius:6px;padding:8px;text-align:center}
+.sphase-n{font-size:15px;font-weight:700;color:var(--teal)}
+.sphase-l{font-size:10px;color:var(--gold2);margin-top:2px}
+.sphase-s{font-size:9px;color:var(--muted);margin-top:1px}
+.deco{position:absolute;right:-20px;bottom:-20px;width:180px;height:180px;border-radius:50%;border:36px solid rgba(201,168,76,.04);pointer-events:none}
+.deco2{position:absolute;right:30px;top:-30px;width:100px;height:100px;border-radius:50%;border:20px solid rgba(43,166,160,.05);pointer-events:none}
+
+/* nav */
+.snav{display:flex;align-items:center;justify-content:space-between;padding:10px 18px;border-top:1px solid var(--border);background:rgba(13,27,42,.7);flex-shrink:0}
+.navbtn{padding:7px 18px;border-radius:7px;font-size:13px;font-weight:500;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--muted);transition:all .2s}
+.navbtn:hover:not(:disabled){border-color:var(--gold);color:var(--gold)}
+.navbtn:disabled{opacity:.3;cursor:not-allowed}
+.navbtn.primary{background:var(--gold);border-color:var(--gold);color:var(--navy)}
+.navbtn.primary:hover:not(:disabled){background:var(--gold2)}
+.aistatus{display:flex;align-items:center;gap:8px;font-size:11px;color:var(--muted)}
+.aidot{width:7px;height:7px;border-radius:50%;background:var(--teal);animation:pulse 2s ease-in-out infinite}
+.aidot.on{background:var(--gold);animation:pulse .5s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.2}}
+
+/* ── chat panel ── */
+.cpanel{background:var(--navy);display:flex;flex-direction:column;min-height:0}
+.app.en .cpanel{border-left:1px solid var(--border);grid-column:2;grid-row:2}
+.app.ar .cpanel{border-right:1px solid var(--border);grid-column:1;grid-row:2}
+.cheader{padding:13px 16px;border-bottom:1px solid var(--border);background:var(--navy2);flex-shrink:0}
+.cheader-t{font-size:14px;font-weight:700}
+.cheader-s{font-size:11px;color:var(--muted);margin-top:2px}
+.cmsgs{flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:9px;min-height:0}
+.cmsgs::-webkit-scrollbar{width:4px}
+.cmsgs::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+.msg{display:flex;flex-direction:column;gap:2px;max-width:92%}
+.msg.ai{align-self:flex-end}
+.msg.user{align-self:flex-start}
+.app.en .msg.ai{align-self:flex-start}
+.app.en .msg.user{align-self:flex-end}
+.mwho{font-size:10px;color:var(--muted);padding:0 3px}
+.bubble{padding:8px 12px;border-radius:10px;font-size:13px;line-height:1.7}
+.msg.ai .bubble{background:var(--navy2);border:1px solid var(--border);color:var(--white)}
+.msg.ai .bubble{border-bottom-right-radius:3px}
+.app.en .msg.ai .bubble{border-bottom-right-radius:10px;border-bottom-left-radius:3px}
+.msg.user .bubble{background:var(--teal);color:var(--navy);font-weight:500}
+.msg.user .bubble{border-bottom-left-radius:3px}
+.app.en .msg.user .bubble{border-bottom-left-radius:10px;border-bottom-right-radius:3px}
+.typing{padding:8px 12px;background:var(--navy2);border:1px solid var(--border);border-radius:10px;display:flex;gap:4px;align-items:center;width:52px;align-self:flex-end}
+.app.en .typing{align-self:flex-start;border-bottom-left-radius:3px}
+.app.ar .typing{border-bottom-right-radius:3px}
+.typing span{width:5px;height:5px;border-radius:50%;background:var(--muted);animation:tdot .7s infinite}
+.typing span:nth-child(2){animation-delay:.15s}
+.typing span:nth-child(3){animation-delay:.3s}
+@keyframes tdot{0%,80%,100%{transform:translateY(0)}40%{transform:translateY(-4px)}}
+.cinput-area{padding:10px;border-top:1px solid var(--border);background:var(--navy2);flex-shrink:0}
+.cinput-row{display:flex;gap:7px}
+.app.ar .cinput-row{flex-direction:row-reverse}
+.cinput{flex:1;padding:8px 12px;background:var(--navy);border:1px solid var(--border);border-radius:8px;color:var(--white);font-size:13px;outline:none;resize:none}
+.app.en .cinput{font-family:'DM Sans',sans-serif;direction:ltr;text-align:left}
+.app.ar .cinput{font-family:'Tajawal',sans-serif;direction:rtl;text-align:right}
+.cinput:focus{border-color:var(--teal)}
+.cinput::placeholder{color:rgba(245,242,237,.3)}
+.cinput:disabled{opacity:.4}
+.csend{width:36px;height:36px;background:var(--teal);border:none;border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:background .2s}
+.csend:hover:not(:disabled){background:var(--teal2)}
+.csend:disabled{opacity:.3;cursor:not-allowed}
+.csend svg{width:14px;height:14px;fill:var(--navy)}
+.app.ar .csend svg{transform:scaleX(-1)}
+.chint{font-size:10px;color:var(--muted);margin-top:5px;text-align:center}
+
+/* cert */
+.cert-wrap{display:none;position:fixed;inset:0;background:rgba(13,27,42,.95);z-index:100;align-items:center;justify-content:center}
+.cert-wrap.show{display:flex}
+.cert-box{background:var(--navy2);border:1px solid var(--gold);border-radius:16px;padding:36px 44px;text-align:center;max-width:460px;width:90%;animation:certIn .4s ease}
+@keyframes certIn{from{transform:scale(.9);opacity:0}to{transform:scale(1);opacity:1}}
+.cert-icon{font-size:44px;margin-bottom:14px}
+.cert-title{font-size:20px;font-weight:700;color:var(--gold);margin-bottom:7px}
+.cert-sub{font-size:13px;color:var(--muted);line-height:1.8}
+.cert-score{font-size:30px;font-weight:700;margin:14px 0 6px}
+.cert-date{font-size:11px;color:var(--muted);font-family:'DM Mono',monospace}
+.cert-btns{display:flex;gap:9px;justify-content:center;margin-top:20px}
+.cbtn{padding:9px 22px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;transition:opacity .2s}
+.cbtn:hover{opacity:.82}
+.cbtn.p{background:var(--gold);border:none;color:var(--navy)}
+.cbtn.s{background:transparent;border:1px solid var(--border);color:var(--muted)}
+
+/* lang picker overlay */
+.lang-overlay{position:fixed;inset:0;background:rgba(13,27,42,.97);z-index:200;display:flex;align-items:center;justify-content:center}
+.lang-box{background:var(--navy2);border:1px solid var(--border);border-radius:16px;padding:48px;text-align:center;max-width:420px;width:90%}
+.lang-box-title{font-size:22px;font-weight:700;color:var(--gold);margin-bottom:8px}
+.lang-box-sub{font-size:13px;color:var(--muted);margin-bottom:32px;line-height:1.7}
+.lang-choices{display:flex;gap:14px;justify-content:center}
+.lang-choice{flex:1;padding:18px 12px;border-radius:12px;border:2px solid var(--border);background:transparent;cursor:pointer;transition:all .25s;color:var(--white)}
+.lang-choice:hover{border-color:var(--gold);background:rgba(201,168,76,.08)}
+.lang-choice-flag{font-size:32px;margin-bottom:8px}
+.lang-choice-label{font-size:14px;font-weight:700;color:var(--white)}
+.lang-choice-sub{font-size:11px;color:var(--muted);margin-top:3px}
+.lang-choice.selected{border-color:var(--teal);background:rgba(43,166,160,.12)}
+</style>
+</head>
+<body class="en">
+
+<!-- language picker overlay (shown on load) -->
+<div class="lang-overlay" id="langOverlay">
+  <div class="lang-box">
+    <div style="font-size:32px;margin-bottom:12px">🎓</div>
+    <div class="lang-box-title">ABC Connect Training</div>
+    <div class="lang-box-sub">Please select your preferred language<br>الرجاء اختيار لغتك المفضلة</div>
+    <div class="lang-choices">
+      <div class="lang-choice" onclick="startLang('en')">
+        <div class="lang-choice-flag">🇬🇧</div>
+        <div class="lang-choice-label">English</div>
+        <div class="lang-choice-sub">UK English</div>
+      </div>
+      <div class="lang-choice" onclick="startLang('ar')">
+        <div class="lang-choice-flag">🇦🇪</div>
+        <div class="lang-choice-label" style="font-family:'Tajawal',sans-serif">العربية</div>
+        <div class="lang-choice-sub" style="font-family:'Tajawal',sans-serif">اللغة العربية</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="app en" id="app">
+
+  <!-- topbar -->
+  <div class="topbar" id="topbar">
+    <div class="logo"><span>ABC</span></div>
+    <div>
+      <div class="brand-name" id="brandName">ABC Connect — AI Trainer</div>
+      <div class="brand-sub" id="brandSub">Powered by Claude · Autonomous onboarding</div>
+    </div>
+    <div class="sep"></div>
+    <div class="pills" id="pills"></div>
+    <div class="scounter" id="scounter">1 / 10</div>
+    <div class="lang-toggle" style="margin:0 8px">
+      <button class="lang-btn active" id="btnLangEn" onclick="switchLang('en')">EN</button>
+      <button class="lang-btn" id="btnLangAr" onclick="switchLang('ar')">AR</button>
+    </div>
+    <div class="vc">
+      <div class="sbar" id="sbar"><span></span><span></span><span></span><span></span><span></span></div>
+      <button class="vbtn on" id="voiceBtn" onclick="toggleVoice()" title="Toggle voice">
+        <svg viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>
+      </button>
+      <button class="vbtn" onclick="stopSpeech()">
+        <svg viewBox="0 0 24 24"><path d="M6 6h12v12H6z"/></svg>
+      </button>
+      <select id="vsel" class="vsel" onchange="onVoiceChange()"></select>
+    </div>
+  </div>
+
+  <!-- slide panel -->
+  <div class="spanel">
+    <div class="sviewport"><div class="slide" id="slide"></div></div>
+    <div class="snav" id="snav">
+      <div style="display:flex;gap:8px">
+        <button class="navbtn primary" id="btnnext" onclick="nextSlide()">Next →</button>
+        <button class="navbtn" id="btnprev" onclick="prevSlide()" disabled>← Prev</button>
+      </div>
+      <div class="aistatus">
+        <div class="aidot" id="aidot"></div>
+        <span id="aitext">AI Trainer ready</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- chat panel -->
+  <div class="cpanel">
+    <div class="cheader">
+      <div class="cheader-t" id="chatTitle">AI Trainer — Live Session</div>
+      <div class="cheader-s" id="chatSub">Ask anything · Instant answers</div>
+    </div>
+    <div class="cmsgs" id="cmsgs"></div>
+    <div class="cinput-area">
+      <div class="cinput-row">
+        <textarea class="cinput" id="cinput" rows="2" placeholder="Type your question here..." onkeydown="onKey(event)"></textarea>
+        <button class="csend" id="csend" onclick="sendUser()">
+          <svg viewBox="0 0 24 24"><path d="M2 21L23 12 2 3v7l15 2-15 2v7z"/></svg>
+        </button>
+      </div>
+      <div class="chint" id="chint">Enter to send · Shift+Enter for new line</div>
+    </div>
+  </div>
+
+</div>
+
+<!-- cert overlay -->
+<div class="cert-wrap" id="certWrap">
+  <div class="cert-box">
+    <div class="cert-icon" id="certIcon">🏆</div>
+    <div class="cert-title" id="certTitle"></div>
+    <div class="cert-sub" id="certSub"></div>
+    <div class="cert-score" id="certScore"></div>
+    <div class="cert-date" id="certDate"></div>
+    <div class="cert-btns">
+      <button class="cbtn p" onclick="restart()" id="certRetakeBtn">Retake</button>
+      <button class="cbtn s" onclick="document.getElementById('certWrap').classList.remove('show')" id="certCloseBtn">Close</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ═══════════════════════════════════════════════════════════
+   CONTENT — both languages
+═══════════════════════════════════════════════════════════ */
+const CONTENT = {
+  en: {
+    slides: [
+      {
+        id:1, mod:'Welcome',
+        narr:`Welcome to ABC Connect onboarding! I'm your AI trainer for this session. ABC Connect is the official platform of ABC Retail Property Group — connecting you as a shop manager directly with mall operations, maintenance, and administration across all 5 flagship properties. By the end of this session you'll be fully confident using the platform. Let's get started!`,
+        html:`<div class="si center"><div class="deco"></div><div class="deco2"></div>
+          <div class="sbadge">ABC Retail Property Group</div>
+          <div class="stitle" style="font-size:26px">Welcome to<br><span style="color:var(--gold)">ABC Connect</span></div>
+          <div class="ssub" style="max-width:380px;margin-top:8px">Your central platform for managing everything related to your shop across our 5 flagship properties.</div>
+        </div>`
+      },
+      {
+        id:2, mod:'Overview',
+        narr:`ABC Connect is built on Salesforce and is your single window to mall management. Instead of calling different departments or sending WhatsApp messages, everything goes through one platform. You can submit requests, track their status in real time, and receive official approvals digitally — no paperwork, no chasing.`,
+        html:`<div class="si split"><div class="deco"></div>
+          <div class="sl"><div class="slabel">Platform Overview</div><div class="stitle">What is ABC Connect?</div><div class="ssub">A Salesforce-based system for tenant-mall communication across all 5 ABC flagships.</div></div>
+          <div class="sr">
+            <div class="scard"><div class="scard-t">Centralized Communication</div><div class="scard-b">All requests, approvals and updates in one place — no more fragmented messages.</div></div>
+            <div class="scard"><div class="scard-t">Real-Time Tracking</div><div class="scard-b">Follow your ticket or fit-out phase live, 24/7, from any device.</div></div>
+            <div class="scard"><div class="scard-t">Paperless Workflow</div><div class="scard-b">Submit documents, get approvals, receive notifications — all digitally.</div></div>
+          </div>
+        </div>`
+      },
+      {
+        id:3, mod:'Overview',
+        narr:`ABC Connect is active across all five ABC Retail properties: Verdun Mall, Achrafieh Mall, Dbayeh Mall, Verdun Department Store, and Achrafieh Department Store. Your account is tied to your specific unit and property, but the platform works exactly the same across all locations.`,
+        html:`<div class="si"><div class="deco"></div>
+          <div class="slabel">Coverage</div>
+          <div class="stitle">5 Flagship Properties</div>
+          <div class="ssub">ABC Connect is active across all five ABC Retail locations in Lebanon.</div>
+          <div class="sphases" style="grid-template-columns:repeat(5,1fr);margin-top:18px">
+            <div class="sphase"><div class="sphase-n">V</div><div class="sphase-l">Verdun</div><div class="sphase-s">Mall</div></div>
+            <div class="sphase"><div class="sphase-n">A</div><div class="sphase-l">Achrafieh</div><div class="sphase-s">Mall</div></div>
+            <div class="sphase"><div class="sphase-n">D</div><div class="sphase-l">Dbayeh</div><div class="sphase-s">Mall</div></div>
+            <div class="sphase"><div class="sphase-n">VD</div><div class="sphase-l">Verdun</div><div class="sphase-s">Dept. Store</div></div>
+            <div class="sphase"><div class="sphase-n">AD</div><div class="sphase-l">Achrafieh</div><div class="sphase-s">Dept. Store</div></div>
+          </div>
+        </div>`
+      },
+      {
+        id:4, mod:'Login',
+        narr:`To access ABC Connect, mall IT will send your login credentials to your registered email on your first day. Open the portal URL in any browser, enter your username and temporary password, then set a new permanent password. Confirm your shop unit number and contact details so the mall team can identify you correctly in the system.`,
+        html:`<div class="si split">
+          <div class="sl"><div class="slabel">Getting Started</div><div class="stitle">Accessing ABC Connect</div><div class="ssub" style="margin-top:8px">Credentials from mall IT. Login via the portal link on any device.</div></div>
+          <div class="sr">
+            <div class="scard"><div class="scard-t">Step 1 — Credentials</div><div class="scard-b">Username and temp password sent by IT to your registered email on day one.</div></div>
+            <div class="scard"><div class="scard-t">Step 2 — First Login</div><div class="scard-b">Open the portal URL, enter credentials, reset your password.</div></div>
+            <div class="scard"><div class="scard-t">Step 3 — Profile Setup</div><div class="scard-b">Confirm your unit number, flagship, and contact information.</div></div>
+          </div>
+        </div>`
+      },
+      {
+        id:5, mod:'Tickets',
+        narr:`Whenever you have an issue in your shop — a broken fixture, a cleaning request, an electrical fault — you create a service ticket. Click New Ticket on your dashboard, select the category, describe the issue, and attach a photo if possible. Once submitted you receive a ticket number and email confirmation. Track its status live from Open to Resolved.`,
+        html:`<div class="si"><div class="deco"></div>
+          <div class="slabel">Module 2 — Tickets</div>
+          <div class="stitle">Creating a Service Ticket</div>
+          <div class="ssub">Use tickets for any maintenance, cleaning, or operational issue in your unit.</div>
+          <ul class="slist">
+            <li>Tap <strong style="color:var(--gold2)">New Ticket</strong> on your dashboard</li>
+            <li>Select category: Maintenance, Cleaning, Security, or Technical</li>
+            <li>Describe the issue clearly and attach a photo if available</li>
+            <li>Submit — receive a ticket number and email confirmation</li>
+            <li>Track live: Open → Assigned → In Progress → Resolved</li>
+          </ul>
+        </div>`
+      },
+      {
+        id:6, mod:'Tickets',
+        narr:`Each ticket moves through four stages. Open means received. Assigned means a team member is allocated. In Progress means work has started. Resolved means it's done — you'll get a notification. If you're not satisfied, you can reopen the ticket directly from the platform without calling anyone.`,
+        html:`<div class="si"><div class="deco"></div>
+          <div class="slabel">Module 2 — Ticket Lifecycle</div>
+          <div class="stitle">Ticket Statuses</div>
+          <div class="ssub">Every ticket moves through defined stages — visible to you at all times.</div>
+          <div class="sphases" style="grid-template-columns:repeat(4,1fr);margin-top:18px">
+            <div class="sphase"><div class="sphase-n">1</div><div class="sphase-l">Open</div><div class="sphase-s">Received</div></div>
+            <div class="sphase"><div class="sphase-n">2</div><div class="sphase-l">Assigned</div><div class="sphase-s">Team allocated</div></div>
+            <div class="sphase"><div class="sphase-n">3</div><div class="sphase-l">In Progress</div><div class="sphase-s">Work underway</div></div>
+            <div class="sphase"><div class="sphase-n">4</div><div class="sphase-l">Resolved</div><div class="sphase-s">Issue closed</div></div>
+          </div>
+        </div>`
+      },
+      {
+        id:7, mod:'Approvals',
+        narr:`If you are opening a new shop or doing a renovation, you go through the ABC Connect fit-out phase process — a 9-phase journey from concept design all the way to opening approval. Each phase requires specific documents submitted through the platform. You cannot move to the next phase until the current one is approved.`,
+        html:`<div class="si"><div class="deco"></div>
+          <div class="slabel">Module 3 — Approvals</div>
+          <div class="stitle">Fit-Out Phase Process</div>
+          <div class="ssub">Opening or renovating? ABC Connect manages the full 9-phase approval journey.</div>
+          <div class="sphases" style="grid-template-columns:repeat(3,1fr);margin-top:14px">
+            <div class="sphase"><div class="sphase-n">F1</div><div class="sphase-l">Concept Design</div></div>
+            <div class="sphase"><div class="sphase-n">F2</div><div class="sphase-l">Design Approval</div></div>
+            <div class="sphase"><div class="sphase-n">F3</div><div class="sphase-l">Permit Submission</div></div>
+            <div class="sphase"><div class="sphase-n">F4</div><div class="sphase-l">Construction</div></div>
+            <div class="sphase"><div class="sphase-n">F5</div><div class="sphase-l">Inspection</div></div>
+            <div class="sphase"><div class="sphase-n">F6–9</div><div class="sphase-l">Sign-off & Opening</div></div>
+          </div>
+        </div>`
+      },
+      {
+        id:8, mod:'Approvals',
+        narr:`To submit documents for a fit-out phase, open your phase link sent by mall management. Upload files in PDF or DWG format named clearly. The team reviews within 3 to 5 business days. If returned, comments are attached to each document. Revise and resubmit in the same phase — no need to start over.`,
+        html:`<div class="si split">
+          <div class="sl"><div class="slabel">Module 3 — Documents</div><div class="stitle">Submitting Documents</div><div class="ssub" style="margin-top:8px">Each phase has a required checklist. Upload through your phase portal link.</div></div>
+          <div class="sr">
+            <div class="scard"><div class="scard-t">Accepted Formats</div><div class="scard-b">PDF, DWG, PNG, JPG — max 20MB. Name clearly: F02_FloorPlan_v1.pdf</div></div>
+            <div class="scard"><div class="scard-t">Review Timeline</div><div class="scard-b">3–5 business days. Notified by email and in-platform on decision.</div></div>
+            <div class="scard"><div class="scard-t">Revisions</div><div class="scard-b">Comments attached per document. Revise and resubmit in same phase.</div></div>
+          </div>
+        </div>`
+      },
+      {
+        id:9, mod:'Quiz', isQuiz:true,
+        narr:`Excellent — you have completed all three training modules! Now I will ask you 3 quick questions to confirm you are ready to use ABC Connect independently. Answer as best you can. If anything is unclear I will explain before we continue. Ready? Here is question 1: How do you create a service ticket in ABC Connect?`,
+        html:`<div class="si center"><div class="deco"></div><div class="deco2"></div>
+          <div class="slabel">Final Assessment</div>
+          <div class="stitle">Knowledge Check</div>
+          <div class="ssub" style="max-width:380px;margin-top:10px">3 short questions covering all modules. The AI trainer will ask and evaluate your answers live in the chat.</div>
+        </div>`
+      },
+      {
+        id:10, mod:'Quiz', isFinal:true, narr:null,
+        html:`<div class="si center"><div class="deco"></div>
+          <div class="stitle" style="color:var(--gold)">Assessment Complete</div>
+          <div class="ssub" style="margin-top:10px">Calculating your results...</div>
+        </div>`
+      }
+    ],
+    ui:{
+      brandName:'ABC Connect — AI Trainer',
+      brandSub:'Powered by Claude · Autonomous onboarding',
+      chatTitle:'AI Trainer — Live Session',
+      chatSub:'Ask anything · Instant answers',
+      placeholder:'Type your question here...',
+      hint:'Enter to send · Shift+Enter for new line',
+      nextBtn:'Next →', prevBtn:'← Prev',
+      aiReady:'AI Trainer ready', aiThinking:'AI Trainer thinking...',
+      retake:'Retake training', close:'Close',
+      backPrefix:'Back to slide'
+    },
+    quiz:`You are conducting the final 3-question assessment for ABC Connect onboarding training. Respond in English only.
+Ask exactly these 3 questions one at a time:
+Q1: How do you create a service ticket in ABC Connect?
+Q2: What happens when a fit-out document is returned with comments?
+Q3: How many phases does the ABC Connect fit-out process have?
+Rules: Evaluate each answer. Give brief warm feedback. After evaluating Q3 output EXACTLY on its own line: QUIZ_RESULT:{"correct":X,"total":3}`,
+    base:`You are an ABC Connect AI Training Presenter for ABC Retail Property Group in Lebanon. Respond in English only.
+ABC Connect: Salesforce-based platform, 5 flagships — Verdun Mall, Achrafieh Mall, Dbayeh Mall, Verdun Dept Store, Achrafieh Dept Store. Features: tickets (Maintenance/Cleaning/Security/Technical), 9-phase fit-out approvals, document submissions. IT: m.issa@abc.com.lb.
+You are on slide SLIDE_NUM of 10. The narration already appeared. Answer follow-up questions only.
+Rules: 2-3 sentences max. Warm and encouraging. If trainee says OK/understood/next, tell them to press Next.`,
+    cert:{pass:'Certified — Training Passed', fail:'Training Incomplete',
+      passSub:'You have successfully completed ABC Connect onboarding and are cleared to operate independently.',
+      failSub:(c,t)=>`Score ${c}/${t}. Minimum 2/3 required. Please retake the training.`,
+      correct:'correct'}
+  },
+
+  ar: {
+    slides: [
+      {
+        id:1, mod:'مرحباً',
+        narr:`أهلاً وسهلاً بكم في تدريب ABC Connect! أنا مدربكم الذكي لهذه الجلسة. ABC Connect هي المنصة الرسمية لمجموعة ABC Retail Property Group، وتربطكم كمدير متجر مباشرةً بعمليات المركز التجاري، والصيانة، والإدارة في المراكز الخمسة. في نهاية هذه الجلسة ستتمكنون من استخدام المنصة بكل ثقة. لنبدأ!`,
+        html:`<div class="si center"><div class="deco"></div><div class="deco2"></div>
+          <div class="sbadge">ABC Retail Property Group</div>
+          <div class="stitle" style="font-size:26px">مرحباً بكم في<br><span style="color:var(--gold)">ABC Connect</span></div>
+          <div class="ssub" style="max-width:380px;margin-top:8px">منصتكم المركزية لإدارة كل ما يتعلق بمتجركم في مراكزنا التجارية الخمسة.</div>
+        </div>`
+      },
+      {
+        id:2, mod:'نظرة عامة',
+        narr:`ABC Connect مبنية على Salesforce وهي نافذتكم الوحيدة للتواصل مع إدارة المركز. بدلاً من الاتصال بأقسام مختلفة أو إرسال رسائل واتساب، كل شيء يمر عبر منصة واحدة. يمكنكم تقديم الطلبات، ومتابعة حالتها لحظة بلحظة، واستلام الموافقات الرسمية إلكترونياً.`,
+        html:`<div class="si split"><div class="deco"></div>
+          <div class="sl"><div class="slabel">نظرة عامة</div><div class="stitle">ما هي ABC Connect؟</div><div class="ssub">نظام Salesforce للتواصل بين المستأجرين وإدارة المراكز الخمسة.</div></div>
+          <div class="sr">
+            <div class="scard"><div class="scard-t">تواصل مركزي</div><div class="scard-b">جميع الطلبات والموافقات في مكان واحد — لا مزيد من الاتصالات المتفرقة.</div></div>
+            <div class="scard"><div class="scard-t">متابعة فورية</div><div class="scard-b">تابعوا حالة طلبكم مباشرةً، على مدار الساعة، من أي جهاز.</div></div>
+            <div class="scard"><div class="scard-t">سير عمل بلا أوراق</div><div class="scard-b">أرسلوا الوثائق، استلموا الموافقات، وتلقوا الإشعارات — كل شيء إلكترونياً.</div></div>
+          </div>
+        </div>`
+      },
+      {
+        id:3, mod:'نظرة عامة',
+        narr:`ABC Connect فعّالة في جميع مراكز ABC Retail الخمسة: فردان مول، أشرفية مول، ضبية مول، بيت الأزياء فردان، وبيت الأزياء أشرفية. حسابكم مرتبط بوحدتكم ومركزكم المحدد، لكن طريقة عمل المنصة متطابقة في جميع المواقع.`,
+        html:`<div class="si"><div class="deco"></div>
+          <div class="slabel">التغطية الجغرافية</div>
+          <div class="stitle">المراكز التجارية الخمسة</div>
+          <div class="ssub">ABC Connect فعّالة في جميع مواقع ABC Retail في لبنان.</div>
+          <div class="sphases" style="grid-template-columns:repeat(5,1fr);margin-top:18px">
+            <div class="sphase"><div class="sphase-n">V</div><div class="sphase-l">فردان</div><div class="sphase-s">مول</div></div>
+            <div class="sphase"><div class="sphase-n">A</div><div class="sphase-l">أشرفية</div><div class="sphase-s">مول</div></div>
+            <div class="sphase"><div class="sphase-n">D</div><div class="sphase-l">ضبية</div><div class="sphase-s">مول</div></div>
+            <div class="sphase"><div class="sphase-n">VD</div><div class="sphase-l">فردان</div><div class="sphase-s">بيت الأزياء</div></div>
+            <div class="sphase"><div class="sphase-n">AD</div><div class="sphase-l">أشرفية</div><div class="sphase-s">بيت الأزياء</div></div>
+          </div>
+        </div>`
+      },
+      {
+        id:4, mod:'تسجيل الدخول',
+        narr:`للوصول إلى ABC Connect، سيرسل قسم IT بيانات تسجيل الدخول إلى بريدكم الإلكتروني في أول يوم عمل. افتحوا رابط البوابة في أي متصفح، أدخلوا بيانات الدخول، ثم غيّروا كلمة المرور المؤقتة. بعدها أكدوا رقم وحدتكم ومعلومات التواصل حتى تتمكن إدارة المركز من التعرف عليكم في النظام.`,
+        html:`<div class="si split">
+          <div class="sl"><div class="slabel">البدء</div><div class="stitle">كيفية الوصول إلى ABC Connect</div><div class="ssub" style="margin-top:8px">بيانات الدخول من قسم IT. تسجيل الدخول عبر رابط البوابة من أي جهاز.</div></div>
+          <div class="sr">
+            <div class="scard"><div class="scard-t">الخطوة ١ — بيانات الدخول</div><div class="scard-b">تصلكم عبر البريد الإلكتروني في أول يوم عمل من قسم IT.</div></div>
+            <div class="scard"><div class="scard-t">الخطوة ٢ — أول تسجيل دخول</div><div class="scard-b">افتحوا الرابط، أدخلوا البيانات، غيّروا كلمة المرور.</div></div>
+            <div class="scard"><div class="scard-t">الخطوة ٣ — الملف الشخصي</div><div class="scard-b">أكدوا رقم وحدتكم والمركز ومعلومات التواصل.</div></div>
+          </div>
+        </div>`
+      },
+      {
+        id:5, mod:'التذاكر',
+        narr:`في أي وقت يكون لديكم مشكلة في متجركم — عطل في التجهيزات أو طلب تنظيف أو مشكلة كهربائية — تقومون بإنشاء تذكرة خدمة. اضغطوا على تذكرة جديدة في لوحة التحكم، اختاروا الفئة، اشرحوا المشكلة بوضوح، وأرفقوا صورة إن أمكن. ستصلكم رسالة تأكيد برقم التذكرة يمكنكم متابعتها لحظة بلحظة.`,
+        html:`<div class="si"><div class="deco"></div>
+          <div class="slabel">الوحدة ٢ — التذاكر</div>
+          <div class="stitle">إنشاء تذكرة خدمة</div>
+          <div class="ssub">استخدموا التذاكر لأي مشكلة صيانة أو تشغيل في وحدتكم.</div>
+          <ul class="slist">
+            <li>اضغطوا على <strong style="color:var(--gold2)">تذكرة جديدة</strong> في لوحة التحكم</li>
+            <li>اختاروا الفئة: صيانة، تنظيف، أمن، أو تقنية</li>
+            <li>اشرحوا المشكلة بوضوح وأرفقوا صورة إن أمكن</li>
+            <li>أرسلوا — ستصلكم رسالة تأكيد برقم التذكرة</li>
+            <li>تابعوا: مفتوحة ← مخصصة ← قيد التنفيذ ← مُحلَّة</li>
+          </ul>
+        </div>`
+      },
+      {
+        id:6, mod:'التذاكر',
+        narr:`كل تذكرة تمر بأربع مراحل: مفتوحة تعني أنها وصلت للنظام، مخصصة تعني أن موظفاً تم تكليفه، قيد التنفيذ تعني أن العمل بدأ، ومُحلَّة تعني أن المشكلة أُغلقت. إذا لم تكونوا راضين عن الحل يمكنكم إعادة فتح التذكرة مباشرةً من المنصة.`,
+        html:`<div class="si"><div class="deco"></div>
+          <div class="slabel">الوحدة ٢ — دورة حياة التذكرة</div>
+          <div class="stitle">حالات التذكرة</div>
+          <div class="ssub">كل تذكرة تمر بمراحل محددة — يمكنكم متابعتها في أي وقت.</div>
+          <div class="sphases" style="grid-template-columns:repeat(4,1fr);margin-top:18px">
+            <div class="sphase"><div class="sphase-n">١</div><div class="sphase-l">مفتوحة</div><div class="sphase-s">استُلمت</div></div>
+            <div class="sphase"><div class="sphase-n">٢</div><div class="sphase-l">مخصصة</div><div class="sphase-s">تم التكليف</div></div>
+            <div class="sphase"><div class="sphase-n">٣</div><div class="sphase-l">قيد التنفيذ</div><div class="sphase-s">العمل جارٍ</div></div>
+            <div class="sphase"><div class="sphase-n">٤</div><div class="sphase-l">مُحلَّة</div><div class="sphase-s">تم الإغلاق</div></div>
+          </div>
+        </div>`
+      },
+      {
+        id:7, mod:'الموافقات',
+        narr:`إذا كنتم تفتحون متجراً جديداً أو تجددون، ستمرون بعملية مراحل التجهيز في ABC Connect — رحلة من ٩ مراحل من التصميم المبدئي حتى الموافقة على الافتتاح. كل مرحلة تتطلب وثائق محددة ترفعونها عبر المنصة. لا يمكنكم الانتقال للمرحلة التالية إلا بعد الموافقة على الحالية.`,
+        html:`<div class="si"><div class="deco"></div>
+          <div class="slabel">الوحدة ٣ — الموافقات</div>
+          <div class="stitle">عملية مراحل التجهيز</div>
+          <div class="ssub">تفتحون متجراً أو تجددون؟ ABC Connect تدير رحلة الموافقات الكاملة من ٩ مراحل.</div>
+          <div class="sphases" style="grid-template-columns:repeat(3,1fr);margin-top:14px">
+            <div class="sphase"><div class="sphase-n">F1</div><div class="sphase-l">التصميم المبدئي</div></div>
+            <div class="sphase"><div class="sphase-n">F2</div><div class="sphase-l">موافقة التصميم</div></div>
+            <div class="sphase"><div class="sphase-n">F3</div><div class="sphase-l">تقديم التصاريح</div></div>
+            <div class="sphase"><div class="sphase-n">F4</div><div class="sphase-l">البناء والتنفيذ</div></div>
+            <div class="sphase"><div class="sphase-n">F5</div><div class="sphase-l">التفتيش</div></div>
+            <div class="sphase"><div class="sphase-n">F6-9</div><div class="sphase-l">التوقيع والافتتاح</div></div>
+          </div>
+        </div>`
+      },
+      {
+        id:8, mod:'الموافقات',
+        narr:`لرفع الوثائق لمرحلة التجهيز، افتحوا رابط المرحلة الذي ترسله إدارة المركز. ارفعوا الملفات بصيغة PDF أو DWG باسم واضح. الفريق يراجع الوثائق خلال ثلاثة إلى خمسة أيام عمل. في حال الإعادة ستجدون تعليقات مرفقة بكل وثيقة. أعيدوا التقديم في نفس المرحلة — لا حاجة للبدء من الصفر.`,
+        html:`<div class="si split">
+          <div class="sl"><div class="slabel">الوحدة ٣ — الوثائق</div><div class="stitle">رفع الوثائق للموافقة</div><div class="ssub" style="margin-top:8px">لكل مرحلة قائمة وثائق مطلوبة. ارفعوها عبر رابط مرحلتكم.</div></div>
+          <div class="sr">
+            <div class="scard"><div class="scard-t">الصيغ المقبولة</div><div class="scard-b">PDF، DWG، PNG، JPG — حد أقصى ٢٠ ميغابايت. سمّوا الملف بوضوح.</div></div>
+            <div class="scard"><div class="scard-t">مدة المراجعة</div><div class="scard-b">٣–٥ أيام عمل. ستتلقون إشعاراً بالبريد وعبر المنصة.</div></div>
+            <div class="scard"><div class="scard-t">التعديلات</div><div class="scard-b">التعليقات مرفقة بكل وثيقة. عدّلوا وأعيدوا التقديم في نفس المرحلة.</div></div>
+          </div>
+        </div>`
+      },
+      {
+        id:9, mod:'الاختبار', isQuiz:true,
+        narr:`ممتاز — لقد أتممتم الوحدات التدريبية الثلاث! الآن سأطرح عليكم ٣ أسئلة قصيرة للتأكد من جاهزيتكم لاستخدام ABC Connect باستقلالية. أجيبوا بصدق. هل أنتم مستعدون؟ إليكم السؤال الأول: كيف تنشئون تذكرة خدمة في ABC Connect؟`,
+        html:`<div class="si center"><div class="deco"></div><div class="deco2"></div>
+          <div class="slabel">التقييم النهائي</div>
+          <div class="stitle">اختبار المعرفة</div>
+          <div class="ssub" style="max-width:380px;margin-top:10px">٣ أسئلة قصيرة تغطي جميع الوحدات. سيطرح عليكم المدرب الذكي الأسئلة ويقيّم إجاباتكم مباشرةً في المحادثة.</div>
+        </div>`
+      },
+      {
+        id:10, mod:'الاختبار', isFinal:true, narr:null,
+        html:`<div class="si center"><div class="deco"></div>
+          <div class="stitle" style="color:var(--gold)">اكتمل التقييم</div>
+          <div class="ssub" style="margin-top:10px">جارٍ احتساب نتيجتكم...</div>
+        </div>`
+      }
+    ],
+    ui:{
+      brandName:'ABC Connect — المدرب الذكي',
+      brandSub:'مدعوم بـ Claude · تدريب مستقل بالكامل',
+      chatTitle:'المدرب الذكي — جلسة مباشرة',
+      chatSub:'اسأل أي سؤال · ردود فورية',
+      placeholder:'اكتب سؤالك أو ردك هنا...',
+      hint:'Enter للإرسال · Shift+Enter لسطر جديد',
+      nextBtn:'← التالية', prevBtn:'السابقة →',
+      aiReady:'المدرب جاهز', aiThinking:'المدرب يفكر...',
+      retake:'إعادة التدريب', close:'إغلاق',
+      backPrefix:'عودة إلى الشريحة'
+    },
+    quiz:`أنت مدرب ذكي تجري التقييم النهائي لتدريب ABC Connect. تحدث باللغة العربية فقط.
+اطرح هذه الأسئلة الثلاثة بالترتيب، سؤالاً واحداً في كل مرة:
+س١: كيف تنشئ تذكرة خدمة في ABC Connect؟
+س٢: ماذا يحدث عندما تُعاد وثيقة مرحلة التجهيز مع تعليقات؟
+س٣: كم عدد مراحل عملية التجهيز في ABC Connect؟
+القواعد: قيّم كل إجابة. أعطِ تغذية راجعة موجزة ومشجعة. بعد تقييم السؤال الثالث اكتب هذا السطر حرفياً على سطر منفرد: QUIZ_RESULT:{"correct":X,"total":3}`,
+    base:`أنت مدرب ذكي لمنصة ABC Connect لمجموعة ABC Retail Property Group في لبنان. تحدث باللغة العربية فقط.
+ABC Connect: منصة Salesforce، ٥ مراكز — فردان مول، أشرفية مول، ضبية مول، بيت الأزياء فردان، بيت الأزياء أشرفية. الميزات: تذاكر خدمة، موافقات التجهيز من ٩ مراحل، رفع وثائق. IT: m.issa@abc.com.lb.
+أنت في الشريحة SLIDE_NUM من ١٠. السرد ظهر بالفعل. أجب على أسئلة المتدرب فقط.
+القواعد: ٢-٣ جمل كحد أقصى. دافئ ومهني. إذا قال المتدرب حسناً أو فهمت أو التالي، أخبره بالضغط على زر الشريحة التالية.`,
+    cert:{pass:'معتمد — اجتزت التدريب', fail:'التدريب غير مكتمل',
+      passSub:'لقد أتممت تدريب ABC Connect بنجاح وأصبحت مؤهلاً لاستخدام المنصة باستقلالية.',
+      failSub:(c,t)=>`نتيجتك ${c} من ${t}. الحد الأدنى للنجاح هو ٢ من ٣. يرجى إعادة التدريب.`,
+      correct:'صحيحة'}
+  }
+};
+
+/* ═══════════════════════════════════════════════════════════
+   TTS
+   Arabic  → Google Translate TTS (works on any device, no install)
+   English → Web Speech API, UK English Male voice
+═══════════════════════════════════════════════════════════ */
+let voiceOn  = true;
+let enVoice  = null;
+let allVoices = [];
+let currentAudio = null;   // HTMLAudioElement for Arabic
+
+/* ── English voice (Web Speech) ── */
+function loadVoices() {
+  const v = window.speechSynthesis.getVoices();
+  if (!v.length) return;
+  allVoices = v;
+  const enGB = v.filter(x => /^en.GB/i.test(x.lang));
+  const MALE = ['Daniel','George','Oliver','Arthur','Harry','Malcolm','Gordon','Rishi','Ryan','James'];
+  let found = null;
+  for (const n of MALE) { found = enGB.find(x => x.name.includes(n)); if (found) break; }
+  if (!found) found = enGB.find(x => !/kate|serena|moira|tessa|female/i.test(x.name));
+  enVoice = found || enGB[0] || v.find(x => /^en/i.test(x.lang)) || null;
+
+  // populate selector — English voices only (Arabic handled by Google)
+  const sel = document.getElementById('vsel');
+  sel.innerHTML = '<option value="google_ar" selected>🇦🇪 Google Arabic</option>';
+  enGB.forEach(x => {
+    const o = document.createElement('option');
+    o.value = 'en_' + v.indexOf(x);
+    o.textContent = '🇬🇧 ' + x.name.substring(0,18);
+    if (x === enVoice) o.selected = true;
+    sel.appendChild(o);
+  });
+}
+
+function onVoiceChange() {
+  const val = document.getElementById('vsel').value;
+  if (val === 'google_ar') return; // Arabic always uses Google
+  const v = allVoices[parseInt(val.split('_')[1])];
+  if (v) enVoice = v;
+}
+
+if (typeof speechSynthesis !== 'undefined') {
+  loadVoices();
+  speechSynthesis.onvoiceschanged = loadVoices;
+  setTimeout(loadVoices, 600);
+}
+
+/* ── Arabic transliteration — strip Latin so Google TTS reads clean Arabic ── */
+const AR_TERMS = {
+  'ABC Connect':'إيه بي سي كونكت','ABC Retail':'إيه بي سي ريتيل',
+  'Salesforce':'سيلز فورس','PDF':'بي دي إف','DWG':'دي دبليو جي',
+  'PNG':'بي إن جي','JPG':'جي بي جي','IT':'آي تي','MEP':'إم إي بي',
+  'F1':'المرحلة الأولى','F2':'المرحلة الثانية','F3':'المرحلة الثالثة',
+  'F4':'المرحلة الرابعة','F5':'المرحلة الخامسة','F6':'المرحلة السادسة',
+  'F7':'المرحلة السابعة','F8':'المرحلة الثامنة','F9':'المرحلة التاسعة',
+  'F6-9':'المراحل السادسة حتى التاسعة','F6–9':'المراحل السادسة حتى التاسعة',
+  'Verdun Mall':'فردان مول','Achrafieh Mall':'أشرفية مول','Dbayeh Mall':'ضبية مول',
+  'Claude':'كلود','WhatsApp':'واتساب','Google':'جوجل'
+};
+
+function prepArabic(text) {
+  let t = text.replace(/<[^>]+>/g,' ');
+  for (const [en, ar] of Object.entries(AR_TERMS)) {
+    t = t.replace(new RegExp(en.replace(/[-[\]{}()*+?.,\\^$|#\s]/g,'\\$&'),'gi'), ar);
+  }
+  t = t.replace(/[a-zA-Z0-9._@/\\]+/g,' ');
+  return t.replace(/\s+/g,' ').trim();
+}
+
+/* ── Google Translate TTS — Arabic ── */
+/* Splits long text into ≤200-char chunks on sentence boundaries,
+   plays them sequentially through an Audio element */
+function splitChunks(text, max) {
+  const sentences = text.split(/(?<=[.،؟!\n])\s*/);
+  const chunks = [];
+  let cur = '';
+  for (const s of sentences) {
+    if ((cur + ' ' + s).trim().length > max) {
+      if (cur) chunks.push(cur.trim());
+      cur = s;
+    } else {
+      cur = (cur + ' ' + s).trim();
+    }
+  }
+  if (cur) chunks.push(cur.trim());
+  return chunks.filter(c => c.length > 0);
+}
+
+function googleTTS(text, onDone) {
+  const chunks = splitChunks(text, 190);
+  let idx = 0;
+
+  function playNext() {
+    if (idx >= chunks.length) {
+      document.getElementById('sbar').classList.remove('on');
+      if (onDone) onDone();
+      return;
+    }
+    const chunk = chunks[idx++];
+    const url = 'https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=ar&q=' + encodeURIComponent(chunk);
+    if (currentAudio) { currentAudio.pause(); currentAudio = null; }
+    const audio = new Audio(url);
+    currentAudio = audio;
+    audio.playbackRate = 0.92;
+    audio.oncanplaythrough = () => {
+      document.getElementById('sbar').classList.add('on');
+      audio.play().catch(() => playNext());
+    };
+    audio.onended = playNext;
+    audio.onerror = playNext; // skip failed chunk, continue
+    audio.load();
+  }
+
+  playNext();
+}
+
+/* ── Main speak function ── */
+function speak(text) {
+  if (!voiceOn) return;
+  stopSpeech();
+
+  const clean = text.replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim();
+  if (!clean) return;
+
+  if (lang === 'ar') {
+    const arClean = prepArabic(clean);
+    if (arClean) googleTTS(arClean);
+  } else {
+    speakEN(clean);
+  }
+}
+
+function speakEN(text) {
+  if (typeof speechSynthesis === 'undefined') return;
+  const utt   = new SpeechSynthesisUtterance(text);
+  utt.voice   = enVoice || null;
+  utt.lang    = enVoice ? enVoice.lang : 'en-GB';
+  utt.rate    = 0.92; utt.pitch = 1.0; utt.volume = 1;
+  utt.onstart = () => document.getElementById('sbar').classList.add('on');
+  utt.onend   = () => document.getElementById('sbar').classList.remove('on');
+  utt.onerror = () => document.getElementById('sbar').classList.remove('on');
+  speechSynthesis.speak(utt);
+}
+
+function stopSpeech() {
+  if (currentAudio) { currentAudio.pause(); currentAudio.src=''; currentAudio = null; }
+  if (typeof speechSynthesis !== 'undefined') speechSynthesis.cancel();
+  document.getElementById('sbar').classList.remove('on');
+}
+
+function toggleVoice() {
+  voiceOn = !voiceOn;
+  const btn = document.getElementById('voiceBtn');
+  if (voiceOn) {
+    btn.classList.add('on'); btn.classList.remove('off');
+    btn.innerHTML = `<svg viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>`;
+  } else {
+    btn.classList.remove('on'); btn.classList.add('off');
+    btn.innerHTML = `<svg viewBox="0 0 24 24"><path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3z"/></svg>`;
+    stopSpeech();
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   STATE & LANGUAGE
+═══════════════════════════════════════════════════════════ */
+let lang = 'en';
+let cur = 0, hist = [], busy = false, quizMode = false, done = false;
+
+function C() { return CONTENT[lang]; }
+function S() { return C().slides; }
+
+function startLang(l) {
+  lang = l;
+  document.getElementById('langOverlay').style.display = 'none';
+  applyLang();
+  renderSlide();
+  boot();
+}
+
+function switchLang(l) {
+  if (l === lang) return;
+  lang = l;
+  cur = 0; hist = []; quizMode = false; done = false;
+  stopSpeech();
+  document.getElementById('cmsgs').innerHTML = '';
+  document.getElementById('cinput').disabled = false;
+  document.getElementById('csend').disabled = false;
+  applyLang();
+  renderSlide();
+  boot();
+}
+
+function applyLang() {
+  const isAr = lang === 'ar';
+  const c = C();
+  document.documentElement.lang = lang;
+  document.documentElement.dir = isAr ? 'rtl' : 'ltr';
+  document.body.className = lang;
+  document.getElementById('app').className = 'app ' + lang;
+  document.getElementById('brandName').textContent = c.ui.brandName;
+  document.getElementById('brandSub').textContent = c.ui.brandSub;
+  document.getElementById('chatTitle').textContent = c.ui.chatTitle;
+  document.getElementById('chatSub').textContent = c.ui.chatSub;
+  document.getElementById('cinput').placeholder = c.ui.placeholder;
+  document.getElementById('chint').textContent = c.ui.hint;
+  document.getElementById('btnnext').textContent = c.ui.nextBtn;
+  document.getElementById('btnprev').textContent = c.ui.prevBtn;
+  document.getElementById('aitext').textContent = c.ui.aiReady;
+  document.getElementById('certRetakeBtn').textContent = c.ui.retake;
+  document.getElementById('certCloseBtn').textContent = c.ui.close;
+  document.getElementById('btnLangEn').className = 'lang-btn' + (lang==='en'?' active':'');
+  document.getElementById('btnLangAr').className = 'lang-btn' + (lang==='ar'?' active':'');
+  // pills direction
+  document.getElementById('pills').style.flexDirection = isAr ? 'row-reverse' : 'row';
+  // slide RTL class
+  document.getElementById('slide').className = isAr ? 'slide ar-slide' : 'slide';
+  // update voice selector default
+  const sel = document.getElementById('vsel');
+  if (isAr && arVoice) {
+    const idx = allVoices.indexOf(arVoice);
+    if (idx >= 0) sel.value = 'ar_' + idx;
+  } else if (!isAr && enVoice) {
+    const idx = allVoices.indexOf(enVoice);
+    if (idx >= 0) sel.value = 'en_' + idx;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   RENDER
+═══════════════════════════════════════════════════════════ */
+function renderSlide() {
+  const s = S()[cur];
+  const isAr = lang === 'ar';
+  document.getElementById('slide').innerHTML = s.html;
+  document.getElementById('slide').className = isAr ? 'slide ar-slide' : 'slide';
+  document.getElementById('scounter').textContent = `${cur+1} / ${S().length}`;
+  document.getElementById('btnprev').disabled = cur === 0;
+  document.getElementById('btnnext').disabled = cur === S().length-1 || done;
+  const seen = new Set();
+  const mods = S().map(x=>x.mod).filter(m=>seen.has(m)?false:(seen.add(m),true));
+  const past = new Set(S().slice(0,cur).map(x=>x.mod));
+  document.getElementById('pills').innerHTML = mods.map(m=>{
+    const cls = m===S()[cur].mod?'active':past.has(m)?'done':'';
+    return `<span class="pill ${cls}">${m}</span>`;
+  }).join('');
+}
+
+/* ═══════════════════════════════════════════════════════════
+   CHAT UI
+═══════════════════════════════════════════════════════════ */
+function addMsg(role, text) {
+  const box = document.getElementById('cmsgs');
+  const d = document.createElement('div');
+  d.className = `msg ${role}`;
+  const who = role==='ai' ? (lang==='ar'?'المدرب الذكي':'AI Trainer') : (lang==='ar'?'أنت':'You');
+  d.innerHTML = `<div class="mwho">${who}</div><div class="bubble">${text.replace(/\n/g,'<br>')}</div>`;
+  box.appendChild(d);
+  box.scrollTop = box.scrollHeight;
+  if (role==='ai') speak(text);
+}
+
+let typingEl = null;
+function showTyping() {
+  const box = document.getElementById('cmsgs');
+  typingEl = document.createElement('div');
+  typingEl.className = 'msg ai';
+  const who = lang==='ar'?'المدرب الذكي':'AI Trainer';
+  typingEl.innerHTML = `<div class="mwho">${who}</div><div class="typing"><span></span><span></span><span></span></div>`;
+  box.appendChild(typingEl);
+  box.scrollTop = box.scrollHeight;
+}
+function hideTyping() { if(typingEl){typingEl.remove();typingEl=null;} }
+
+function setBusy(v) {
+  busy = v;
+  document.getElementById('aidot').className = 'aidot'+(v?' on':'');
+  document.getElementById('aitext').textContent = v ? C().ui.aiThinking : C().ui.aiReady;
+  document.getElementById('cinput').disabled = v;
+  document.getElementById('csend').disabled = v;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   API
+═══════════════════════════════════════════════════════════ */
+async function ask(userMsg) {
+  if (busy) return;
+  setBusy(true); showTyping();
+  const msgs = [...hist, {role:'user', content:userMsg}];
+  const sys = quizMode ? C().quiz : C().base.replace('SLIDE_NUM', S()[cur].id);
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({model:'claude-sonnet-4-20250514', max_tokens:600, system:sys, messages:msgs})
+    });
+    const data = await res.json();
+    if (data.error) { hideTyping(); setBusy(false); addMsg('ai', 'Error: '+data.error.message); return; }
+    const reply = data.content?.find(b=>b.type==='text')?.text || (lang==='ar'?'حدث خطأ ما.':'Something went wrong.');
+    hist.push({role:'user',content:userMsg},{role:'assistant',content:reply});
+    if (hist.length > 20) hist = hist.slice(-20);
+    hideTyping();
+    const clean = reply.replace(/QUIZ_RESULT:\{[^}]*\}/g,'').trim();
+    if (clean) addMsg('ai', clean);
+    checkQuiz(reply);
+  } catch(e) {
+    hideTyping();
+    addMsg('ai', lang==='ar'?'خطأ في الاتصال. تحقق من الشبكة.':'Connection error. Please check your network.');
+  }
+  setBusy(false);
+  document.getElementById('cinput').focus();
+}
+
+function checkQuiz(text) {
+  const m = text.match(/QUIZ_RESULT:\{"correct":(\d),"total":(\d)\}/);
+  if (m) { done=true; setTimeout(()=>showCert(+m[1],+m[2]), 1000); }
+}
+
+function sendUser() {
+  if (busy||done) return;
+  const el = document.getElementById('cinput');
+  const txt = el.value.trim();
+  if (!txt) return;
+  el.value = '';
+  addMsg('user', txt);
+  ask(txt);
+}
+function onKey(e) { if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendUser();} }
+
+/* ═══════════════════════════════════════════════════════════
+   NAVIGATION
+═══════════════════════════════════════════════════════════ */
+function nextSlide() {
+  if (cur>=S().length-1||busy) return;
+  stopSpeech(); cur++;
+  renderSlide();
+  const s = S()[cur];
+  if (s.isFinal) return;
+  if (s.isQuiz) { quizMode=true; hist=[]; addMsg('ai', s.narr); return; }
+  if (s.narr) { hist=[]; addMsg('ai', s.narr); }
+}
+
+function prevSlide() {
+  if (cur<=0||busy) return;
+  stopSpeech(); cur--;
+  if (cur<8) quizMode=false;
+  renderSlide();
+  const s = S()[cur];
+  if (s.narr) { hist=[]; addMsg('ai', `${C().ui.backPrefix} ${s.id}. ${s.narr}`); }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   CERT
+═══════════════════════════════════════════════════════════ */
+function showCert(correct, total) {
+  const pass = correct >= 2;
+  const c = C().cert;
+  document.getElementById('certIcon').textContent = pass ? '🏆' : '📋';
+  document.getElementById('certTitle').textContent = pass ? c.pass : c.fail;
+  document.getElementById('certSub').textContent = pass ? c.passSub : c.failSub(correct, total);
+  document.getElementById('certScore').textContent = `${correct} / ${total} ${c.correct}`;
+  document.getElementById('certScore').style.color = pass ? 'var(--teal)' : '#E24B4A';
+  document.getElementById('certDate').textContent = new Date().toLocaleDateString(lang==='ar'?'ar-LB':'en-GB',{day:'2-digit',month:'long',year:'numeric'});
+  document.getElementById('certRetakeBtn').textContent = C().ui.retake;
+  document.getElementById('certCloseBtn').textContent = C().ui.close;
+  document.getElementById('certWrap').classList.add('show');
+  speak(pass ? (lang==='ar'?'مبروك! لقد اجتزت التدريب بنجاح.':'Congratulations! You have passed the training.') : (lang==='ar'?'لم تجتز التدريب هذه المرة. يرجى المحاولة مجدداً.':'You did not pass this time. Please retake the training.'));
+}
+
+function restart() {
+  stopSpeech(); cur=0; hist=[]; quizMode=false; done=false;
+  document.getElementById('certWrap').classList.remove('show');
+  document.getElementById('cmsgs').innerHTML='';
+  document.getElementById('cinput').disabled=false;
+  document.getElementById('csend').disabled=false;
+  renderSlide(); boot();
+}
+
+/* ═══════════════════════════════════════════════════════════
+   BOOT
+═══════════════════════════════════════════════════════════ */
+function boot() {
+  hist=[];
+  addMsg('ai', S()[0].narr);
+}
+
+// Don't auto-boot — wait for language selection
+</script>
+</body>
+</html>
