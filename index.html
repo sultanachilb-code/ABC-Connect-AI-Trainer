@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>ABC Connect — AI Trainer</title>
 <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700&family=DM+Sans:wght@400;500;600&family=DM+Mono:wght@400&display=swap" rel="stylesheet">
+<script src="https://code.responsivevoice.org/responsivevoice.js?key=FREE"></script>
 <style>
 :root{
   --navy:#0D1B2A;--navy2:#1A2E45;--gold:#C9A84C;--gold2:#E8C87A;
@@ -603,52 +604,14 @@ ABC Connect: منصة Salesforce، ٥ مراكز — فردان مول، أشر�
 
 /* ═══════════════════════════════════════════════════════════
    TTS
-   Arabic  → Google Translate TTS (works on any device, no install)
-   English → Web Speech API, UK English Male voice
+   Arabic  → ResponsiveVoice "Arabic Male" (works any device)
+   English → ResponsiveVoice "UK English Male"
 ═══════════════════════════════════════════════════════════ */
-let voiceOn  = true;
-let enVoice  = null;
-let allVoices = [];
-let currentAudio = null;   // HTMLAudioElement for Arabic
+let voiceOn = true;
 
-/* ── English voice (Web Speech) ── */
-function loadVoices() {
-  const v = window.speechSynthesis.getVoices();
-  if (!v.length) return;
-  allVoices = v;
-  const enGB = v.filter(x => /^en.GB/i.test(x.lang));
-  const MALE = ['Daniel','George','Oliver','Arthur','Harry','Malcolm','Gordon','Rishi','Ryan','James'];
-  let found = null;
-  for (const n of MALE) { found = enGB.find(x => x.name.includes(n)); if (found) break; }
-  if (!found) found = enGB.find(x => !/kate|serena|moira|tessa|female/i.test(x.name));
-  enVoice = found || enGB[0] || v.find(x => /^en/i.test(x.lang)) || null;
+const RV_AR = 'Arabic Male';
+const RV_EN = 'UK English Male';
 
-  // populate selector — English voices only (Arabic handled by Google)
-  const sel = document.getElementById('vsel');
-  sel.innerHTML = '<option value="google_ar" selected>🇦🇪 Google Arabic</option>';
-  enGB.forEach(x => {
-    const o = document.createElement('option');
-    o.value = 'en_' + v.indexOf(x);
-    o.textContent = '🇬🇧 ' + x.name.substring(0,18);
-    if (x === enVoice) o.selected = true;
-    sel.appendChild(o);
-  });
-}
-
-function onVoiceChange() {
-  const val = document.getElementById('vsel').value;
-  if (val === 'google_ar') return; // Arabic always uses Google
-  const v = allVoices[parseInt(val.split('_')[1])];
-  if (v) enVoice = v;
-}
-
-if (typeof speechSynthesis !== 'undefined') {
-  loadVoices();
-  speechSynthesis.onvoiceschanged = loadVoices;
-  setTimeout(loadVoices, 600);
-}
-
-/* ── Arabic transliteration — strip Latin so Google TTS reads clean Arabic ── */
 const AR_TERMS = {
   'ABC Connect':'إيه بي سي كونكت','ABC Retail':'إيه بي سي ريتيل',
   'Salesforce':'سيلز فورس','PDF':'بي دي إف','DWG':'دي دبليو جي',
@@ -670,84 +633,53 @@ function prepArabic(text) {
   return t.replace(/\s+/g,' ').trim();
 }
 
-/* ── Google Translate TTS — Arabic ── */
-/* Splits long text into ≤200-char chunks on sentence boundaries,
-   plays them sequentially through an Audio element */
-function splitChunks(text, max) {
-  const sentences = text.split(/(?<=[.،؟!\n])\s*/);
-  const chunks = [];
-  let cur = '';
-  for (const s of sentences) {
-    if ((cur + ' ' + s).trim().length > max) {
-      if (cur) chunks.push(cur.trim());
-      cur = s;
-    } else {
-      cur = (cur + ' ' + s).trim();
-    }
-  }
-  if (cur) chunks.push(cur.trim());
-  return chunks.filter(c => c.length > 0);
+function prepEnglish(text) {
+  return text.replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim();
 }
 
-function googleTTS(text, onDone) {
-  const chunks = splitChunks(text, 190);
-  let idx = 0;
-
-  function playNext() {
-    if (idx >= chunks.length) {
-      document.getElementById('sbar').classList.remove('on');
-      if (onDone) onDone();
-      return;
-    }
-    const chunk = chunks[idx++];
-    const url = 'https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=ar&q=' + encodeURIComponent(chunk);
-    if (currentAudio) { currentAudio.pause(); currentAudio = null; }
-    const audio = new Audio(url);
-    currentAudio = audio;
-    audio.playbackRate = 0.92;
-    audio.oncanplaythrough = () => {
-      document.getElementById('sbar').classList.add('on');
-      audio.play().catch(() => playNext());
-    };
-    audio.onended = playNext;
-    audio.onerror = playNext; // skip failed chunk, continue
-    audio.load();
-  }
-
-  playNext();
+/* populate selector with the two voices */
+function loadVoices() {
+  const sel = document.getElementById('vsel');
+  sel.innerHTML = `
+    <option value="ar">🇦🇪 Arabic Male</option>
+    <option value="en">🇬🇧 UK English Male</option>`;
+  sel.value = lang === 'ar' ? 'ar' : 'en';
 }
 
-/* ── Main speak function ── */
+function onVoiceChange() {} // selector is cosmetic — voice chosen by lang
+
 function speak(text) {
   if (!voiceOn) return;
   stopSpeech();
-
-  const clean = text.replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim();
-  if (!clean) return;
+  const sbar = document.getElementById('sbar');
 
   if (lang === 'ar') {
-    const arClean = prepArabic(clean);
-    if (arClean) googleTTS(arClean);
+    const clean = prepArabic(text);
+    if (!clean) return;
+    if (typeof responsiveVoice !== 'undefined') {
+      responsiveVoice.speak(clean, RV_AR, {
+        rate: 0.9, pitch: 1,
+        onstart: () => sbar.classList.add('on'),
+        onend:   () => sbar.classList.remove('on'),
+        onerror: () => sbar.classList.remove('on')
+      });
+    }
   } else {
-    speakEN(clean);
+    const clean = prepEnglish(text);
+    if (!clean) return;
+    if (typeof responsiveVoice !== 'undefined') {
+      responsiveVoice.speak(clean, RV_EN, {
+        rate: 1, pitch: 1,
+        onstart: () => sbar.classList.add('on'),
+        onend:   () => sbar.classList.remove('on'),
+        onerror: () => sbar.classList.remove('on')
+      });
+    }
   }
 }
 
-function speakEN(text) {
-  if (typeof speechSynthesis === 'undefined') return;
-  const utt   = new SpeechSynthesisUtterance(text);
-  utt.voice   = enVoice || null;
-  utt.lang    = enVoice ? enVoice.lang : 'en-GB';
-  utt.rate    = 0.92; utt.pitch = 1.0; utt.volume = 1;
-  utt.onstart = () => document.getElementById('sbar').classList.add('on');
-  utt.onend   = () => document.getElementById('sbar').classList.remove('on');
-  utt.onerror = () => document.getElementById('sbar').classList.remove('on');
-  speechSynthesis.speak(utt);
-}
-
 function stopSpeech() {
-  if (currentAudio) { currentAudio.pause(); currentAudio.src=''; currentAudio = null; }
-  if (typeof speechSynthesis !== 'undefined') speechSynthesis.cancel();
+  if (typeof responsiveVoice !== 'undefined') responsiveVoice.cancel();
   document.getElementById('sbar').classList.remove('on');
 }
 
@@ -818,15 +750,8 @@ function applyLang() {
   document.getElementById('pills').style.flexDirection = isAr ? 'row-reverse' : 'row';
   // slide RTL class
   document.getElementById('slide').className = isAr ? 'slide ar-slide' : 'slide';
-  // update voice selector default
-  const sel = document.getElementById('vsel');
-  if (isAr && arVoice) {
-    const idx = allVoices.indexOf(arVoice);
-    if (idx >= 0) sel.value = 'ar_' + idx;
-  } else if (!isAr && enVoice) {
-    const idx = allVoices.indexOf(enVoice);
-    if (idx >= 0) sel.value = 'en_' + idx;
-  }
+  // update voice selector
+  loadVoices();
 }
 
 /* ═══════════════════════════════════════════════════════════
@@ -984,6 +909,7 @@ function restart() {
 ═══════════════════════════════════════════════════════════ */
 function boot() {
   hist=[];
+  loadVoices();
   addMsg('ai', S()[0].narr);
 }
 
